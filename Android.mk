@@ -11,89 +11,121 @@ common_CFLAGS := -DWITH_ANDROID $(version_CFLAGS)
 target_CFLAGS := $(common_CFLAGS) -include sys/sysmacros.h
 
 # external/e2fsprogs/lib is needed for uuid/uuid.h
-common_C_INCLUDES := $(LOCAL_PATH)/include external/e2fsprogs/lib/ $(LOCAL_PATH)/mkfs
+common_C_INCLUDES := $(LOCAL_PATH)/include external/e2fsprogs/lib/
 
 #----------------------------------------------------------
-libf2fs_src_files := lib/libf2fs.c lib/libf2fs_io.c
-
 include $(CLEAR_VARS)
-LOCAL_MODULE := libf2fs
-LOCAL_SRC_FILES := $(libf2fs_src_files)
+LOCAL_MODULE := libf2fs_fmt
+LOCAL_SRC_FILES := \
+	lib/libf2fs.c \
+	mkfs/f2fs_format.c \
+	mkfs/f2fs_format_utils.c \
+
 LOCAL_C_INCLUDES := $(common_C_INCLUDES)
 LOCAL_CFLAGS := $(target_CFLAGS)
-LOCAL_SHARED_LIBRARIES := libext2_uuid libsparse libz
-include $(BUILD_SHARED_LIBRARY)
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := libf2fs
-LOCAL_SRC_FILES := $(libf2fs_src_files)
-LOCAL_C_INCLUDES := $(common_C_INCLUDES)
-LOCAL_CFLAGS := $(common_CFLAGS)
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include $(LOCAL_PATH)/mkfs
 include $(BUILD_STATIC_LIBRARY)
 
 #----------------------------------------------------------
-mkfs_f2fs_src_files := \
+include $(CLEAR_VARS)
+LOCAL_MODULE := libf2fs_fmt_host
+LOCAL_SRC_FILES := \
+	lib/libf2fs.c \
 	mkfs/f2fs_format.c \
 	mkfs/f2fs_format_utils.c \
-	mkfs/f2fs_format_main.c
 
+LOCAL_C_INCLUDES := $(common_C_INCLUDES)
+LOCAL_CFLAGS := $(common_CFLAGS)
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include $(LOCAL_PATH)/mkfs
+include $(BUILD_HOST_STATIC_LIBRARY)
+
+#----------------------------------------------------------
 include $(CLEAR_VARS)
+LOCAL_MODULE := libf2fs_fmt_host_dyn
+LOCAL_SRC_FILES := \
+	lib/libf2fs.c \
+	lib/libf2fs_io.c \
+	mkfs/f2fs_format.c \
+	mkfs/f2fs_format_utils.c \
+
+LOCAL_C_INCLUDES := $(common_C_INCLUDES)
+LOCAL_CFLAGS := $(common_CFLAGS)
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include $(LOCAL_PATH)/mkfs
+LOCAL_STATIC_LIBRARIES := \
+     libf2fs_ioutils_host \
+     libext2_uuid \
+     libsparse \
+     libz
+# LOCAL_LDLIBS := -ldl
+include $(BUILD_HOST_SHARED_LIBRARY)
+
+#----------------------------------------------------------
+include $(CLEAR_VARS)
+# The LOCAL_MODULE name is referenced by the code. Don't change it.
 LOCAL_MODULE := mkfs.f2fs
-LOCAL_SRC_FILES := $(mkfs_f2fs_src_files)
+
+# mkfs.f2fs is used in recovery: must be static.
+LOCAL_FORCE_STATIC_EXECUTABLE := true
+
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+
+LOCAL_SRC_FILES := \
+	lib/libf2fs_io.c \
+	mkfs/f2fs_format_main.c
 LOCAL_C_INCLUDES := $(common_C_INCLUDES)
 LOCAL_CFLAGS := $(target_CFLAGS)
-LOCAL_SHARED_LIBRARIES := libf2fs libext2_uuid
+LOCAL_STATIC_LIBRARIES := libc libf2fs_fmt libext2_uuid
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)
 
+#----------------------------------------------------------
 include $(CLEAR_VARS)
-LOCAL_MODULE := mkfs.f2fs
-LOCAL_SRC_FILES := $(libf2fs_src_files) $(mkfs_f2fs_src_files)
+LOCAL_MODULE := make_f2fs
+
+LOCAL_SRC_FILES := \
+	lib/libf2fs_io.c \
+	mkfs/f2fs_format_main.c
 LOCAL_C_INCLUDES := $(common_C_INCLUDES)
 LOCAL_CFLAGS := $(target_CFLAGS)
+LOCAL_STATIC_LIBRARIES := libf2fs_fmt
 LOCAL_SHARED_LIBRARIES := libext2_uuid
+LOCAL_SYSTEM_SHARED_LIBRARIES := libc
 LOCAL_MODULE_TAGS := optional
-include $(BUILD_HOST_EXECUTABLE)
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := libf2fs_mkfs
-LOCAL_SRC_FILES := $(mkfs_f2fs_src_files)
-LOCAL_C_INCLUDES := $(common_C_INCLUDES)
-LOCAL_CFLAGS := $(version_CFLAGS) -Dmain=mkfs_f2fs_main
-LOCAL_MODULE_TAGS := optional
-include $(BUILD_STATIC_LIBRARY)
+include $(BUILD_EXECUTABLE)
 
 #----------------------------------------------------------
-fsck_f2fs_src_files := \
+include $(CLEAR_VARS)
+# The LOCAL_MODULE name is referenced by the code. Don't change it.
+LOCAL_MODULE := fsck.f2fs
+LOCAL_SRC_FILES := \
 	fsck/dump.c \
 	fsck/fsck.c \
 	fsck/main.c \
-	fsck/mount.c
+	fsck/mount.c \
+	lib/libf2fs.c \
+	lib/libf2fs_io.c \
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := fsck.f2fs
-LOCAL_SRC_FILES := $(fsck_f2fs_src_files)
 LOCAL_C_INCLUDES := $(common_C_INCLUDES)
 LOCAL_CFLAGS := $(target_CFLAGS)
-LOCAL_SHARED_LIBRARIES := libf2fs
+LOCAL_SHARED_LIBRARIES := libext2_uuid
+LOCAL_SYSTEM_SHARED_LIBRARIES := libc
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)
 
+#----------------------------------------------------------
 include $(CLEAR_VARS)
 LOCAL_MODULE := fsck.f2fs
-LOCAL_SRC_FILES := $(libf2fs_src_files) $(fsck_f2fs_src_files)
+LOCAL_SRC_FILES := \
+	fsck/dump.c \
+	fsck/fsck.c \
+	fsck/main.c \
+	fsck/mount.c \
+	lib/libf2fs.c \
+	lib/libf2fs_io.c \
+
 LOCAL_C_INCLUDES := $(common_C_INCLUDES)
 LOCAL_CFLAGS := $(common_CFLAGS)
-LOCAL_SHARED_LIBRARIES := libext2_uuid
-LOCAL_MODULE_TAGS := optional
+LOCAL_HOST_SHARED_LIBRARIES :=  libext2_uuid
 include $(BUILD_HOST_EXECUTABLE)
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := libf2fs_fsck
-LOCAL_SRC_FILES := $(fsck_f2fs_src_files)
-LOCAL_C_INCLUDES := $(common_C_INCLUDES)
-LOCAL_CFLAGS := $(version_CFLAGS) -Dmain=fsck_f2fs_main
-LOCAL_MODULE_TAGS := optional
-include $(BUILD_STATIC_LIBRARY)
 
 endif
